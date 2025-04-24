@@ -162,6 +162,11 @@
             background-color: #ffebee;
             border-color: #ef9a9a;
         }
+        
+        .special-match {
+            background-color: #fff8e1;
+            border-color: #ffd54f;
+        }
     </style>
 </head>
 <body>
@@ -169,7 +174,7 @@
     
     <div class="instructions">
         <h2>Instrucciones:</h2>
-        <p>Arrastra cada Unidad de Datos de Protocolo (PDU) desde la columna izquierda a la capa correspondiente en el modelo OSI (columna derecha). Cuando hayas emparejado todas, haz clic en "Verificar" para comprobar tus respuestas.</p>
+        <p>Arrastra cada Unidad de Datos de Protocolo (PDU) desde la columna izquierda a la capa correspondiente en el modelo OSI (columna derecha). Nota: La PDU "Datos" es válida para las capas de Aplicación, Presentación y Sesión.</p>
     </div>
     
     <div class="main-container">
@@ -201,13 +206,11 @@
         document.addEventListener('DOMContentLoaded', function() {
             // Definir las PDUs y sus capas correspondientes
             const pdus = [
-                { name: "Datos", layer: "Aplicación" },
-                { name: "Datos", layer: "Presentación" },
-                { name: "Datos", layer: "Sesión" },
-                { name: "Segmento", layer: "Transporte" },
-                { name: "Paquete", layer: "Red" },
-                { name: "Trama", layer: "Enlace de Datos" },
-                { name: "Bits", layer: "Física" }
+                { name: "Datos", validLayers: ["Aplicación", "Presentación", "Sesión"] },
+                { name: "Segmento", validLayers: ["Transporte"] },
+                { name: "Paquete", validLayers: ["Red"] },
+                { name: "Trama", validLayers: ["Enlace de Datos"] },
+                { name: "Bits", validLayers: ["Física"] }
             ];
             
             // Capas del modelo OSI
@@ -244,7 +247,7 @@
                     const pduElement = document.createElement('div');
                     pduElement.className = 'pdu';
                     pduElement.textContent = pdu.name;
-                    pduElement.dataset.layer = pdu.layer;
+                    pduElement.dataset.validLayers = JSON.stringify(pdu.validLayers);
                     pduElement.draggable = true;
                     container.appendChild(pduElement);
                 });
@@ -324,22 +327,29 @@
                 const matchAreas = document.querySelectorAll('.match-area');
                 let allCorrect = true;
                 let matchedCount = 0;
+                let specialMatches = 0;
                 
                 // Resetear estilos de feedback
                 matchAreas.forEach(area => {
-                    area.classList.remove('correct-match', 'incorrect-match');
+                    area.classList.remove('correct-match', 'incorrect-match', 'special-match');
                 });
                 
                 matchAreas.forEach(area => {
                     const pdu = area.querySelector('.pdu');
-                    const expectedLayer = area.dataset.layer;
+                    const layerName = area.dataset.layer;
                     
                     if (pdu) {
                         matchedCount++;
-                        const correctLayer = pdu.dataset.layer;
+                        const validLayers = JSON.parse(pdu.dataset.validLayers);
                         
-                        if (correctLayer === expectedLayer) {
-                            area.classList.add('correct-match');
+                        if (validLayers.includes(layerName)) {
+                            // Caso especial para "Datos" en las 3 capas superiores
+                            if (pdu.textContent === "Datos" && ["Aplicación", "Presentación", "Sesión"].includes(layerName)) {
+                                area.classList.add('special-match');
+                                specialMatches++;
+                            } else {
+                                area.classList.add('correct-match');
+                            }
                         } else {
                             area.classList.add('incorrect-match');
                             allCorrect = false;
@@ -348,12 +358,18 @@
                 });
                 
                 const feedback = document.getElementById('feedback');
+                const totalPdus = pdus.length;
+                const correctMatches = document.querySelectorAll('.correct-match, .special-match').length;
                 
-                if (matchedCount < pdus.length) {
-                    feedback.textContent = `Todavía faltan ${pdus.length - matchedCount} emparejamientos. Completa todos antes de verificar.`;
+                if (matchedCount < totalPdus) {
+                    feedback.textContent = `Todavía faltan ${totalPdus - matchedCount} emparejamientos. Completa todos antes de verificar.`;
                     feedback.className = "feedback incorrect";
                 } else if (allCorrect) {
-                    feedback.textContent = "¡Perfecto! Todos los emparejamientos son correctos.";
+                    if (specialMatches > 0) {
+                        feedback.textContent = "¡Correcto! La PDU 'Datos' puede aparecer en las capas de Aplicación, Presentación o Sesión.";
+                    } else {
+                        feedback.textContent = "¡Perfecto! Todos los emparejamientos son correctos.";
+                    }
                     feedback.className = "feedback correct";
                 } else {
                     feedback.textContent = "Algunos emparejamientos son incorrectos. Revisa las áreas marcadas en rojo.";
@@ -372,7 +388,7 @@
                 
                 // Limpiar estilos de feedback
                 document.querySelectorAll('.match-area').forEach(area => {
-                    area.classList.remove('correct-match', 'incorrect-match');
+                    area.classList.remove('correct-match', 'incorrect-match', 'special-match');
                     while (area.firstChild) {
                         area.removeChild(area.firstChild);
                     }
