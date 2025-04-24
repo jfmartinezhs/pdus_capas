@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emparejar PDU con Capas OSI</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f7fa;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #4a6fa5;
+            margin-bottom: 30px;
+        }
+        
+        .container {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 30px;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        
+        .pdus-container, .osi-container {
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            width: 45%;
+        }
+        
+        .section-title {
+            text-align: center;
+            font-size: 1.3rem;
+            margin-bottom: 20px;
+            color: #4a6fa5;
+            font-weight: 600;
+        }
+        
+        .pdus-list, .osi-layers {
+            min-height: 400px;
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .pdu, .layer {
+            padding: 12px;
+            border-radius: 8px;
+            cursor: move;
+            font-weight: 500;
+            text-align: center;
+            color: black;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+            user-select: none;
+        }
+        
+        .pdu {
+            background-color: #f0f0f0;
+            border: 2px solid #ddd;
+        }
+        
+        .pdu:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+        
+        .pdu.dragging {
+            opacity: 0.8;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+        }
+        
+        .layer {
+            background-color: #e6f7ff;
+            border: 2px solid #b3e0ff;
+            margin-bottom: 8px;
+        }
+        
+        .match-area {
+            min-height: 40px;
+            border: 2px dashed #aaa;
+            border-radius: 6px;
+            margin-top: 8px;
+            padding: 5px;
+        }
+        
+        .buttons {
+            display: flex;
+            justify-content: center;
+            margin-top: 30px;
+            gap: 15px;
+        }
+        
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            background-color: #4a6fa5;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        button:hover {
+            background-color: #3a5a80;
+        }
+        
+        .feedback {
+            text-align: center;
+            margin-top: 20px;
+            font-weight: 600;
+            min-height: 24px;
+        }
+        
+        .correct {
+            color: #4caf50;
+        }
+        
+        .incorrect {
+            color: #f44336;
+        }
+        
+        .instructions {
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            max-width: 800px;
+            margin: 30px auto;
+            line-height: 1.6;
+        }
+        
+        .correct-match {
+            background-color: #e8f5e9;
+            border-color: #a5d6a7;
+        }
+        
+        .incorrect-match {
+            background-color: #ffebee;
+            border-color: #ef9a9a;
+        }
+    </style>
+</head>
+<body>
+    <h1>Emparejar PDU con Capas del Modelo OSI</h1>
+    
+    <div class="instructions">
+        <h2>Instrucciones:</h2>
+        <p>Arrastra cada Unidad de Datos de Protocolo (PDU) a la capa del modelo OSI que corresponde. Cuando hayas emparejado todas, haz clic en "Verificar" para comprobar tus respuestas.</p>
+    </div>
+    
+    <div class="container">
+        <div class="pdus-container">
+            <h2 class="section-title">Unidades de Datos de Protocolo (PDU)</h2>
+            <div id="pdus-list" class="pdus-list">
+                <!-- PDUs se agregarán dinámicamente -->
+            </div>
+        </div>
+        
+        <div class="osi-container">
+            <h2 class="section-title">Modelo OSI</h2>
+            <div id="osi-layers" class="osi-layers">
+                <!-- Capas con áreas de emparejamiento se agregarán dinámicamente -->
+            </div>
+        </div>
+    </div>
+    
+    <div class="buttons">
+        <button id="check-matches">Verificar</button>
+        <button id="reset-activity">Reiniciar</button>
+    </div>
+    
+    <div id="feedback" class="feedback"></div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Definir las PDUs y sus capas correspondientes
+            const pdus = [
+                { name: "Datos", layer: "Aplicación" },
+                { name: "Datos", layer: "Presentación" },
+                { name: "Datos", layer: "Sesión" },
+                { name: "Segmento", layer: "Transporte" },
+                { name: "Paquete", layer: "Red" },
+                { name: "Trama", layer: "Enlace de Datos" },
+                { name: "Bits", layer: "Física" }
+            ];
+            
+            // Capas del modelo OSI
+            const osiLayers = [
+                "Aplicación",
+                "Presentación",
+                "Sesión",
+                "Transporte",
+                "Red",
+                "Enlace de Datos",
+                "Física"
+            ];
+            
+            // Mezclar las PDUs para el inicio
+            const shuffledPdus = [...pdus].sort(() => Math.random() - 0.5);
+            
+            // Renderizar las PDUs y las capas OSI
+            renderPdus(shuffledPdus);
+            renderOsiLayers(osiLayers);
+            
+            // Configurar eventos de arrastre
+            setupDragAndDrop();
+            
+            // Configurar botones
+            document.getElementById('check-matches').addEventListener('click', checkMatches);
+            document.getElementById('reset-activity').addEventListener('click', resetActivity);
+            
+            // Función para renderizar PDUs
+            function renderPdus(pdusToRender) {
+                const container = document.getElementById('pdus-list');
+                container.innerHTML = '';
+                
+                pdusToRender.forEach(pdu => {
+                    const pduElement = document.createElement('div');
+                    pduElement.className = 'pdu';
+                    pduElement.textContent = pdu.name;
+                    pduElement.dataset.layer = pdu.layer;
+                    pduElement.draggable = true;
+                    container.appendChild(pduElement);
+                });
+            }
+            
+            // Función para renderizar capas OSI con áreas de emparejamiento
+            function renderOsiLayers(layers) {
+                const container = document.getElementById('osi-layers');
+                container.innerHTML = '';
+                
+                layers.forEach(layer => {
+                    const layerElement = document.createElement('div');
+                    layerElement.className = 'layer';
+                    layerElement.textContent = layer;
+                    
+                    const matchArea = document.createElement('div');
+                    matchArea.className = 'match-area';
+                    matchArea.dataset.layer = layer;
+                    
+                    layerElement.appendChild(matchArea);
+                    container.appendChild(layerElement);
+                });
+            }
+            
+            // Función para configurar arrastrar y soltar
+            function setupDragAndDrop() {
+                let draggedItem = null;
+                
+                document.addEventListener('dragstart', function(e) {
+                    if (e.target.classList.contains('pdu')) {
+                        draggedItem = e.target;
+                        e.target.classList.add('dragging');
+                        e.dataTransfer.effectAllowed = 'move';
+                        e.dataTransfer.setData('text/html', e.target.innerHTML);
+                    }
+                });
+                
+                document.addEventListener('dragover', function(e) {
+                    const matchArea = e.target.closest('.match-area');
+                    if (matchArea) {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = 'move';
+                    }
+                });
+                
+                document.addEventListener('dragend', function(e) {
+                    if (e.target.classList.contains('pdu')) {
+                        e.target.classList.remove('dragging');
+                    }
+                });
+                
+                document.addEventListener('drop', function(e) {
+                    const matchArea = e.target.closest('.match-area');
+                    if (matchArea && draggedItem) {
+                        e.preventDefault();
+                        
+                        // Limpiar cualquier PDU existente en esta área
+                        while (matchArea.firstChild) {
+                            matchArea.removeChild(matchArea.firstChild);
+                        }
+                        
+                        // Clonar el elemento arrastrado y agregarlo al área de emparejamiento
+                        const clonedItem = draggedItem.cloneNode(true);
+                        clonedItem.classList.remove('dragging');
+                        clonedItem.draggable = false;
+                        matchArea.appendChild(clonedItem);
+                        
+                        // Resetear el elemento arrastrado
+                        draggedItem.classList.remove('dragging');
+                        draggedItem = null;
+                    }
+                });
+            }
+            
+            // Función para verificar los emparejamientos
+            function checkMatches() {
+                const matchAreas = document.querySelectorAll('.match-area');
+                let allCorrect = true;
+                let matchedCount = 0;
+                
+                // Resetear estilos de feedback
+                matchAreas.forEach(area => {
+                    area.classList.remove('correct-match', 'incorrect-match');
+                });
+                
+                matchAreas.forEach(area => {
+                    const pdu = area.querySelector('.pdu');
+                    const expectedLayer = area.dataset.layer;
+                    
+                    if (pdu) {
+                        matchedCount++;
+                        const correctLayer = pdu.dataset.layer;
+                        
+                        if (correctLayer === expectedLayer) {
+                            area.classList.add('correct-match');
+                        } else {
+                            area.classList.add('incorrect-match');
+                            allCorrect = false;
+                        }
+                    }
+                });
+                
+                const feedback = document.getElementById('feedback');
+                
+                if (matchedCount < pdus.length) {
+                    feedback.textContent = `Todavía faltan ${pdus.length - matchedCount} emparejamientos.`;
+                    feedback.className = "feedback incorrect";
+                } else if (allCorrect) {
+                    feedback.textContent = "¡Perfecto! Todos los emparejamientos son correctos.";
+                    feedback.className = "feedback correct";
+                } else {
+                    feedback.textContent = "Algunos emparejamientos son incorrectos. Revisa las áreas marcadas en rojo.";
+                    feedback.className = "feedback incorrect";
+                }
+            }
+            
+            // Función para reiniciar la actividad
+            function resetActivity() {
+                const shuffledPdus = [...pdus].sort(() => Math.random() - 0.5);
+                renderPdus(shuffledPdus);
+                renderOsiLayers(osiLayers);
+                setupDragAndDrop();
+                
+                document.getElementById('feedback').textContent = '';
+                
+                // Limpiar estilos de feedback
+                document.querySelectorAll('.match-area').forEach(area => {
+                    area.classList.remove('correct-match', 'incorrect-match');
+                    while (area.firstChild) {
+                        area.removeChild(area.firstChild);
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>
